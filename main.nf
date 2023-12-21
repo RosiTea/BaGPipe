@@ -1,11 +1,5 @@
 #!/usr/bin/env nextflow
 
-// Pipeline input parameters
-params.genomes = "$projectDir/genomes/*.fasta"
-params.prokka_output = "$projectDir/prokka_output"
-params.panaroo_output = "$projectDir/panaroo_output"
-params.iqtree_output = "$projectDir/iqtree_output"
-params.pyseer_output = "$projectDir/pyseer_output"
 log.info """\
     FASTA - TO - GWAS PIPELINE
     ==========================
@@ -19,7 +13,7 @@ log.info """\
 
 // Annotate fasta genome assemblies using Prokka
 process ProkkaAnnotate {
-    publishDir params.prokka_output, mode:'copy'
+    publishDir "${params.outdir}/prokka", mode:'copy'
 
     input:
     path genomes
@@ -31,13 +25,13 @@ process ProkkaAnnotate {
     script:
     prefix = genomes.getBaseName()
     """
-    prokka --cpus 16 --genus Vibrio --usegenus --outdir ${prefix} --prefix ${prefix} ${genomes}
+    prokka --cpus ${task.cpus} --genus Vibrio --usegenus --outdir ${prefix} --prefix ${prefix} ${genomes}
     """
 }
 
 // Build a pangenome, including a multiple sequence alignment of core genes (MAFFT), using Panaroo 
 process PanarooAnalysis {
-    publishDir params.panaroo_output, mode: 'copy'
+    publishDir "${params.outdir}/panaroo", mode: 'copy'
 
     input:
     path gff_files
