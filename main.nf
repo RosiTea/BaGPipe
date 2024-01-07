@@ -4,45 +4,50 @@
 log.info """\
     FASTA - TO - GWAS PIPELINE
     ==========================
-    genomes: ${params.genomes}
     genus: ${params.genus}
     phenotypes: ${params.phenotypes}
+    antibiotic: ${params.antibiotic} 
     """
     .stripIndent()
 
+// Create a variety of parameters options for these scripts
 
 // Validation for user-set parameters
 //
 
+
 // Annotate fasta genome assemblies using Prokka
 process ProkkaAnnotate {
+    tag "${sample_id}"
+    // container "quay.io"
     publishDir "${params.outdir}/prokka", mode:'copy', overwrite: true
 
     input:
-    path genomes
+    tuple val(sample_id), path(assembly_path)
 
     output:
-    path "${prefix}", emit: prokka_output
-    path "${prefix}/*.gff", emit: prokka_output_gff
+    tuple val(sample_id), path("${sample_id}"), emit: prokka_output
+    tuple val(sample_id), path("${sample_id}/*.gff"), emit: prokka_output_gff
 
     script:
-    prefix = genomes.getBaseName()
+    //prefix = assembly_path.getName()
     """
-    prokka --cpus ${task.cpus} --genus ${params.genus} --usegenus --outdir ${prefix} --prefix ${prefix} ${genomes}
+    prokka --cpus ${task.cpus} --genus ${params.genus} --usegenus --outdir ${sample_id} --prefix ${sample_id} ${assembly_path}
     """
 }
 
 // Build a pangenome, including a multiple sequence alignment of core genes (MAFFT), using Panaroo 
 process PanarooAnalysis {
     publishDir "${params.outdir}/panaroo", mode: 'copy', overwrite: true
+    // container "quay.io"
 
     input:
-    path gff_files
+    path(gff_files)
 
     output:
-    path "panaroo_output", emit: panaroo_out
-    path "panaroo_output/core_gene_alignment.aln", emit: panaroo_output_core_aln
-    path "panaroo_output/gene_presence_absence.Rtab", emit: panaroo_output_pre_abs
+    path("panaroo_output"), emit: panaroo_out
+    path("panaroo_output/core_gene_alignment.aln"), emit: panaroo_output_core_aln
+    path("panaroo_output/gene_presence_absence.Rtab"), emit: panaroo_output_pre_abs
 
     script:
     """
@@ -53,12 +58,14 @@ process PanarooAnalysis {
 // Build a phylogeny from the core gene alignment using IQ-TREE
 process PhylogeneticAnalysis {
     publishDir "${params.outdir}/iqtree", mode: 'copy', overwrite: true
+    // container "quay.io"
 
     input:
     path alignment
 
     output:
-    path "phylogenetic_tree", emit: phylo_tree
+    path "*", emit: iqtree_out
+    path "*.treefile", emit: phylo_tree
 
     script:
     """
@@ -66,36 +73,71 @@ process PhylogeneticAnalysis {
     """
 }
 
-// Pyseer
+// Pyseer kinship matrix
+process PyseerKinshipMatrix {
+    publishDir "${params.outdir}/kinship_matrix", mode: 'copy', overwrite: true
+    container "quay.io/rositea/tea"
+
+    input:
+    path tree 
+
+    output:
+    path "*K.tsv", emit: kinship_matrix
+
+    script:
+    """
+    phylogeny_distance.py --lmm core_tree.treefile > phylogeny_K.tsv
+    """
+}
+
 process Pyseer {
     publishDir "${params.outdir}/pyseer", mode: 'copy', overwrite: true
     container "quay.io/rositea/tea"
 
     input:
-    path tree 
-    path pre_abs_rtab
+    path pre_abs
+    path pheno
+    path k_matrix
 
     output:
-    path "pyseer_output", emit: pyseer_output
+    path "*", emit: pyseer_out
 
     script:
     """
-    phylogeny_distance.py --lmm ./iqtree_output/core_tree.treefile > pyseer_output/phylogeny_K.tsv
-    pyseer --lmm --phenotypes ${params.phenotype} --pres ${pre_abs_rtab} --similarity ./pyseer_output/phylogeny_K.tsv --phenotype-column Tetracycline --output-patterns ./pyseer_output/gene_patterns.txt > ./pyseer_output/gwas.txt
+    pyseer --lmm --phenotypes ${params.phenotypes} --pres gene_presence_absence.Rtab --similarity phylogeny_K.tsv --phenotype-column ${params.antibiotic} --output-patterns gene_patterns.txt > gwas.txt
     """
 }
 
+// 
+
 workflow {
-    genomes_ch = Channel.fromPath(params.genomes)
-    genomes_ch.view { "Genomes: $it" }
+    manifest_ch = Channel.fromPath(params.manifest)
+
+    genomes_ch = manifest_ch.splitCsv(header: true, sep: ',')
+        .map{ row -> tuple(row.sample_id, row.assembly_path) }
+
+    //genomes_ch.view()
     ProkkaAnnotate(genomes_ch)
-    gff_files = ProkkaAnnotate.out.prokka_output_gff.collect()
-    //            .map { dir -> "${dir}/*/*.gff"}
-    gff_files.view()
+    gff_files = ProkkaAnnotate.out.prokka_output_gff
+        .map { it -> it[1]}
+        .collect()
+    //gff_files.view()
     PanarooAnalysis(gff_files)
 
-    alignment = PanarooAnalysis.out.panaroo_output_core_aln()
-    alignment.view()
+    alignment = PanarooAnalysis.out.panaroo_output_core_aln
+    //alignment.view()
     PhylogeneticAnalysis(alignment)
+
+    tree = PhylogeneticAnalysis.out.phylo_tree
+    //tree.view()
+    PyseerKinshipMatrix(tree)
+
+    k_matrix = PyseerKinshipMatrix.out.kinship_matrix
+    //k_matrix.view()
+    pre_abs = PanarooAnalysis.out.panaroo_output_pre_abs
+    //pre_abs.view()
+    pheno = Channel.fromPath(params.phenotypes)
+    Pyseer(pre_abs,pheno,k_matrix)
+    
 }
 
