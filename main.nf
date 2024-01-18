@@ -1,6 +1,5 @@
 #!/usr/bin/env nextflow
 
-//params.genomes = "$projectDir/genomes/*.fasta"
 log.info """\
     FASTA - TO - GWAS PIPELINE
     ==========================
