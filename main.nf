@@ -103,9 +103,21 @@ process Pyseer {
 
     script:
     """
-    pyseer --lmm --phenotypes ${params.phenotypes} --pres gene_presence_absence.Rtab --similarity phylogeny_K.tsv --phenotype-column ${params.antibiotic} --output-patterns gene_patterns.txt > gwas.txt
+    pyseer --lmm --phenotypes ${params.phenotypes} --pres gene_presence_absence.Rtab --similarity phylogeny_K.tsv --phenotype-column ${params.antibiotic} --output-patterns gene_patterns_${params.antibiotic}.txt > gwas.txt
+    count_patterns.py gene_patterns_${params.antibiotic}.txt > pattern_count_${params.antibiotic}.txt
+    # qq_plot.py gwas.txt
+    # cat <(head -1 gwas.txt) <(awk "\$4<1.67E-02 {print \$0}" gwas.txt) > significant_variants.txt
+
+    # Visualisation
+    cat <(echo "#CHR SNP BP minLOG10(P) log10(p) r^2") \\
+    <(paste <(sed '1d' gwas.txt | cut -d "_" -f 2) \\
+    <(sed '1d' gwas.txt | cut -f 4) | \\
+    awk '{p = -log(\$2)/log(10); print "26",".",\$1,p,p,"0"}' ) | \\
+    tr ' ' '\t' > gwas.plot
+
     """
 }
+
 
 // 
 
