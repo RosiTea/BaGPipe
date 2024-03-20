@@ -2,7 +2,7 @@ require(ggplot2)
 require(ggrepel)
 library(ggrepel)
 
-gene_hits = read.table("gene_hits.txt", stringsAsFactors=FALSE, header=TRUE, sep="\t")
+gene_hits = read.table("gene_hits.tsv", stringsAsFactors=FALSE, header=TRUE, sep="\t")
 
 pdf("Gene_Hit_Plot.pdf", width = 12, height = 9) 
 

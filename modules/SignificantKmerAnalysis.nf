@@ -1,6 +1,5 @@
 process SignificantKmers {
     publishDir "${params.outdir}/significant_unitigs", mode: 'copy', overwrite: true
-    //container "quay.io/rositea/tea"
 
     input:
     path pyseer_result
@@ -36,7 +35,6 @@ process KmerMap {
 
 process WriteReferenceText {
     publishDir "${params.outdir}/significant_unitigs", mode: 'copy', overwrite: true
-    container "quay.io/rositea/tea"
 
     input:
     path manifest_ch 
@@ -48,7 +46,6 @@ process WriteReferenceText {
 
     script:
     """
-    #!/bin/bash
     reference="${params.reference}"
     reference_base=\${reference%.fa}
     echo -n "" > references.txt
@@ -79,14 +76,15 @@ process AnnotateKmers {
 
     script:
     """
-    annotate_hits_pyseer significant_kmers.txt references.txt annotated_kmers.txt
-    summarise_annotations.py annotated_kmers.txt > gene_hits.txt
+    annotate_hits_pyseer ${sig_kmer} ${reftxt} annotated_kmers.txt
+    summarise_annotations.py annotated_kmers.txt > gene_hits.tsv
     """
 }
 
 process GeneHitPlot {
     publishDir "${params.outdir}/annotated_unitigs", mode: 'copy', overwrite: true
-    container "quay.io/biocontainers/r-ggplot2:2.2.1--r3.3.2_0"
+    // container "quay.io/biocontainers/r-ggplot2:2.2.1--r3.3.2_0"
+    // It seems that r-ggrepel container alone is sufficient for this R script. 
     container "quay.io/biocontainers/r-ggrepel:0.6.5--r3.3.2_0"
 
     input:
