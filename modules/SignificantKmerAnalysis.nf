@@ -76,7 +76,7 @@ process AnnotateKmers {
     script:
     """
     annotate_hits_pyseer ${sig_kmer} ${reftxt} annotated_kmers.tsv
-    summarise_annotations.py annotated_kmers.txt > gene_hits.tsv
+    summarise_annotations.py annotated_kmers.tsv > gene_hits.tsv
     """
 }
 
