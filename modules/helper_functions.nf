@@ -23,11 +23,16 @@ def validate_parameters() {
             log.error("The reference manifest file specified does not exist.")
             errors += 1
         }
-    } else {
-        log.error("No reference manifest file specified. Please specify one using the --reference option.")
-        errors += 1
-    }
+    } 
 
+    if (params.mygff) {
+        gff=file(params.mygff)
+        if (!gff.exists()) {
+            log.error("The annotated genome (gff) manifest file specified does not exist.")
+            errors += 1
+        }
+    }
+   
     if (errors > 0) {
         log.error(String.format("%d errors detected", errors))
         exit 1

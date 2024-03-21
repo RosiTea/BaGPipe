@@ -29,11 +29,11 @@ def printHelp() {
       --genotype_method		   Genotype method to run GWAS, from a choice of three (unitig|pa|snp) (mandatory)
 				   Note: unitig is recommended.
       --reference                  Manifest containing paths to reference FASTA and GFF files (mandatory for significant k-mer/unitig analysis)
-      --mygff                      Input already annotated GFF files; must match sample_ids in manifest (optional)
+      --mygff                      Input a manifest containing paths to already annotated GFF files; must match sample_ids in manifest (optional)
       --mytree                     Input user preferred phylogenetic tree (optional)
       --mvcf                       Input already mergerd vcf.gz file (optional)
       --fe                         Run GWAS using fixed model (SEER) (optional)
-      --help                       print this help message (optional)
+      --help                       Print this help message (optional)
 
     Alternative Options for Some Processes:
 
@@ -96,18 +96,29 @@ workflow {
     manifest_ch = Channel.fromPath(params.manifest)
 
     genomes_ch = manifest_ch.splitCsv(header: true, sep: ',')
-        .map{ row -> tuple(row.sample_id, row.assembly_path) }
-	
+	.map{ row -> tuple(row.sample_id, row.assembly_path) }
+
     pheno = Channel.fromPath(params.phenotypes)
 
 
     if (params.mytree) {
         tree = Channel.fromPath(params.mytree)
-
+        
+	gff_files = Channel.fromPath(params.mygff)
+            .splitCsv(header: true, sep: ',')
+            .map{ row -> tuple(row.sample_id, row.ann_genome_path) }
+            .map{ it -> it[1] }
+            .collect()
     }
     else {
         if (params.mygff) {
-            PanarooAnalysis(gff_files)
+            gff_files = Channel.fromPath(params.mygff)
+		.splitCsv(header: true, sep: ',')
+		.map{ row -> tuple(row.sample_id, row.ann_genome_path) }
+		.map{ it -> it[1] }
+		.collect()
+	
+	    PanarooAnalysis(gff_files)
             alignment = PanarooAnalysis.out.panaroo_output_core_aln
 
             PhylogeneticAnalysis(alignment)
@@ -116,7 +127,7 @@ workflow {
         else {
             ProkkaAnnotate(genomes_ch)
             gff_files = ProkkaAnnotate.out.prokka_output_gff
-                .map { it -> it[1]}
+                .map { it -> it[1] }
                 .collect()
             
             PanarooAnalysis(gff_files)
@@ -199,4 +210,5 @@ workflow {
     
     
 }
+
 
