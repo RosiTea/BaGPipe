@@ -17,19 +17,19 @@ process SignificantKmers {
 }
 
 process KmerMap {
-    publishDir "${params.outdir}/significant_unitigs", mode: 'copy', overwrite: true
+    tag "${fasta}"
+    publishDir "${params.outdir}/significant_unitigs/Manhattan", mode: 'copy', overwrite: true
     container "quay.io/rositea/tea"
 
     input:
-    path sig_kmer
-    path ref
+    tuple path(fasta), path(gff), path(sig_kmer)
 
     output:
     path "*.plot", emit: kmer_map_out
 
     script:
     """
-    phandango_mapper significant_kmers.txt ${params.reference} mapped_kmers.plot
+    phandango_mapper ${sig_kmer} ${fasta} mapped_kmers_${fasta}.plot
     """
 }
 
@@ -38,22 +38,24 @@ process WriteReferenceText {
 
     input:
     path manifest_ch 
-    path ref
-    path gff_files
+    path ref_manifest_ch
 
     output:
     path "*", emit: write_ref_text_out
 
     script:
+    output_file = "references.txt"
+
     """
-    reference="${params.reference}"
-    reference_base=\${reference%.fa}
-    echo -n "" > references.txt
-    echo "\${reference_base}.fa    \${reference_base}.gff    ref" >> references.txt
+    while IFS="\\t" read -r col1 col2
+    do 
+        echo "\${col1}\\t\${col2}\tref" >> ${output_file}
+    done < ${ref_manifest_ch}
+
     while IFS=, read -r sample_id assembly_path
     do
         if [[ \$sample_id != "sample_id" ]]; then
-            echo "\$assembly_path    \$sample_id.gff    draft" >> references.txt
+            echo "\$assembly_path\t\$sample_id.gff\tdraft" >> ${output_file}
         fi
     done < ${params.manifest}
     """
@@ -65,33 +67,28 @@ process AnnotateKmers {
 
     input:
     path sig_kmer
-    path ref
     path reftxt
-    path ref_gff
     path gff_files
-    
 
     output:
-    path "*", emit: annotated_kmers_out
+    path "*.tsv", emit: annotated_kmers_out
 
     script:
     """
-    annotate_hits_pyseer ${sig_kmer} ${reftxt} annotated_kmers.txt
+    annotate_hits_pyseer ${sig_kmer} ${reftxt} annotated_kmers.tsv
     summarise_annotations.py annotated_kmers.txt > gene_hits.tsv
     """
 }
 
 process GeneHitPlot {
     publishDir "${params.outdir}/annotated_unitigs", mode: 'copy', overwrite: true
-    // container "quay.io/biocontainers/r-ggplot2:2.2.1--r3.3.2_0"
-    // It seems that r-ggrepel container alone is sufficient for this R script. 
     container "quay.io/biocontainers/r-ggrepel:0.6.5--r3.3.2_0"
 
     input:
     path genehit
 
     output:
-    path "*", emit: genehit_plot_out
+    path "*.pdf", emit: genehit_plot_out
 
     script:
     """

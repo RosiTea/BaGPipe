@@ -19,8 +19,8 @@ process PyseerUnitig {
         --similarity phylogeny_K.tsv \
         --phenotype-column ${params.antibiotic} \
         --output-patterns kmer_patterns_${params.antibiotic}.txt \
-	--min-af ${params.min_af} \
-	--max-af ${params.max_af} \
+	--min-af ${params.pyseer_min_af} \
+	--max-af ${params.pyseer_max_af} \
         --cpu ${task.cpus} > gwas_${params.antibiotic}_kmers.txt
     count_patterns.py kmer_patterns_${params.antibiotic}.txt > kmer_pattern_count_${params.antibiotic}.txt
     qq_plot.py gwas_${params.antibiotic}_kmers.txt
@@ -48,8 +48,8 @@ process PyseerVariants {
         --similarity ${k_matrix} \
         --phenotype-column ${params.antibiotic} \
         --output-patterns var_patterns_${params.antibiotic}.txt \
-	--min-af ${params.min_af} \
-        --max-af ${params.max_af} \
+	--min-af ${params.pyseer_min_af} \
+        --max-af ${params.pyseer_max_af} \
         --cpu ${task.cpus} > gwas_${params.antibiotic}_var.txt
     count_patterns.py var_patterns_${params.antibiotic}.txt > var_pattern_count_${params.antibiotic}.txt
     qq_plot.py gwas_${params.antibiotic}_var.txt
@@ -77,8 +77,8 @@ process PyseerPreAbs {
         --similarity phylogeny_K.tsv \
         --phenotype-column ${params.antibiotic} \
         --output-patterns gene_patterns_${params.antibiotic}.txt \
-	--min-af ${params.min_af} \
-        --max-af ${params.max_af} \
+	--min-af ${params.pyseer_min_af} \
+        --max-af ${params.pyseer_max_af} \
         --cpu ${task.cpus} > gwas_${params.antibiotic}_preabs.txt
     count_patterns.py gene_patterns_${params.antibiotic}.txt > gene_pattern_count_${params.antibiotic}.txt
     qq_plot.py gwas_${params.antibiotic}_preabs.txt

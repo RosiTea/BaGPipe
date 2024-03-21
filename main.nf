@@ -6,8 +6,7 @@ log.info """\
     genus: ${params.genus}
     phenotypes: ${params.phenotypes}
     antibiotic: ${params.antibiotic} 
-    reference: ${params.reference} 
-    reference_gff: ${params.reference_gff} 
+    genotype_method: ${params.genotype_method}
     """
     .stripIndent()
 
@@ -24,17 +23,14 @@ def printHelp() {
 
     Options:
 
-      --manifest                   Manifest containing paths to FASTQ files (mandatory)
+      --manifest                   Manifest containing paths to FASTA files (mandatory)
       --phenotypes                 A tab file containing phenotypes for all samples (mandatory)
       --genus                      Genus name for samples (mandatory if starting from FASTA files)
       --genotype_method		   Genotype method to run GWAS, from a choice of three (unitig|pa|snp) (mandatory)
 				   Note: unitig is recommended.
-      --reference                  Reference genome fasta file (mandatory for significant kmer analysis) 
-      --reference_gff              Reference genome gff file (mandatory for significant kmer analysis)
+      --reference                  Manifest containing paths to reference FASTA and GFF files (mandatory for significant k-mer/unitig analysis)
       --mygff                      Input already annotated GFF files; must match sample_ids in manifest (optional)
       --mytree                     Input user preferred phylogenetic tree (optional)
-      --pa                         Run GWAS using gene presence and absence, instead of default: unitigs (optional)
-      --snp                        Run GWAS using gene variances, instead of default: unitigs (optional)
       --mvcf                       Input already mergerd vcf.gz file (optional)
       --fe                         Run GWAS using fixed model (SEER) (optional)
       --help                       print this help message (optional)
@@ -49,8 +45,8 @@ def printHelp() {
     [PhylogeneticAnalysis]
       --iqtree_model		   Default: "GTR"
     [Pyseer]
-      --min_af			   Default: 0.01
-      --max_af			   Default: 0.99
+      --pyseer_min_af		   Default: 0.01
+      --pyseer_max_af		   Default: 0.99
 
     """.stripIndent()
 }
@@ -101,7 +97,7 @@ workflow {
 
     genomes_ch = manifest_ch.splitCsv(header: true, sep: ',')
         .map{ row -> tuple(row.sample_id, row.assembly_path) }
-
+	
     pheno = Channel.fromPath(params.phenotypes)
 
 
@@ -132,14 +128,14 @@ workflow {
     }
 
 
-    if (genotype_method == "pa"){
+    if (params.genotype_method == "pa"){
         PyseerKinshipMatrix(tree)
         k_matrix = PyseerKinshipMatrix.out.kinship_matrix
         pre_abs = PanarooAnalysis.out.panaroo_output_pre_abs
 
         PyseerPreAbs(pre_abs,pheno,k_matrix)
     }
-    else if (genotype_method == "snp"){
+    else if (params.genotype_method == "snp"){
         if (params.mvcf){
             // But currently this has a problem: Must use distance matrix with fixed effects (SEER)
             // This is the classifical way of using MDS 
@@ -164,7 +160,7 @@ workflow {
             // Or ask user to input another manifest containing directory of all vcf, then use Process: MergeVCF
         }
     }    
-    else if (genotype_method == "unitig"){
+    else if (params.genotype_method == "unitig"){
         PyseerKinshipMatrix(tree)
         k_matrix = PyseerKinshipMatrix.out.kinship_matrix
 
@@ -172,20 +168,25 @@ workflow {
         unitig = UnitigCaller.out.unitig_out
 
         PyseerUnitig(unitig,pheno,k_matrix)
-        pyseer_result = Pyseer_Unitig.out.pyseer_out
+        pyseer_result = PyseerUnitig.out.pyseer_out
 
         SignificantKmers(pyseer_result)
         sig_kmer = SignificantKmers.out.sig_kmer_out
 
-        if (params.reference && params.reference_gff){
-            ref = Channel.fromPath(params.reference)
-            ref_gff = Channel.fromPath(params.reference_gff)
+        if (params.reference){
+	
+	    ref_manifest_ch = Channel.fromPath(params.reference)
+	    
+	    ref_ch = ref_manifest_ch.splitCsv(header: false, sep:"\t")
+                .map{ row -> tuple(row[0], row[1]) }
+	        .combine(sig_kmer)
+            
+	    KmerMap(ref_ch)
 
-            KmerMap(sig_kmer, ref)
-            WriteReferenceText(manifest_ch,ref,gff_files)
+            WriteReferenceText(manifest_ch,ref_manifest_ch)
             reftxt = WriteReferenceText.out.write_ref_text_out
 
-            AnnotateKmers(sig_kmer,ref,reftxt,ref_gff,gff_files)
+            AnnotateKmers(sig_kmer,reftxt,gff_files)
             genehit = AnnotateKmers.out.annotated_kmers_out
 
             GeneHitPlot(genehit)
