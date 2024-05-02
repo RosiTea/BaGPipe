@@ -107,4 +107,5 @@ A single default configuration file is supplied, encompassing all options and pa
 
 ## Credits
 Pyseer is developed by the Dr. John Lees' team. I would like that thank them for making this amazing tool available. Documentation: https://pyseer.readthedocs.io/en/master
+
 I am supervised by Dr. Ewan Harrison, Dinesh Aggarwal, and William Roberts-Sengier. They are main contributors to ideas in this project. 
