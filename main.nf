@@ -27,7 +27,7 @@ def printHelp() {
       --phenotypes                 A tab file containing phenotypes for all samples (mandatory)
       --genus                      Genus name for samples (mandatory if starting from FASTA files)
       --genotype_method		   Genotype method to run GWAS, from a choice of three (unitig|pa|snp) (mandatory)
-				   Note: unitig is recommended.
+                   Note: unitig is recommended.
       --reference                  Manifest containing paths to reference FASTA and GFF files (mandatory for significant k-mer/unitig analysis)
       --mygff                      Input a manifest containing paths to already annotated GFF files; must match sample_ids in manifest (optional)
       --mytree                     Input user preferred phylogenetic tree (optional)
@@ -96,7 +96,7 @@ workflow {
     manifest_ch = Channel.fromPath(params.manifest)
 
     genomes_ch = manifest_ch.splitCsv(header: true, sep: ',')
-	.map{ row -> tuple(row.sample_id, row.assembly_path) }
+    .map{ row -> tuple(row.sample_id, row.assembly_path) }
 
     pheno = Channel.fromPath(params.phenotypes)
 
@@ -104,7 +104,7 @@ workflow {
     if (params.mytree) {
         tree = Channel.fromPath(params.mytree)
         
-	gff_files = Channel.fromPath(params.mygff)
+    gff_files = Channel.fromPath(params.mygff)
             .splitCsv(header: true, sep: ',')
             .map{ row -> tuple(row.sample_id, row.ann_genome_path) }
             .map{ it -> it[1] }
@@ -113,12 +113,12 @@ workflow {
     else {
         if (params.mygff) {
             gff_files = Channel.fromPath(params.mygff)
-		.splitCsv(header: true, sep: ',')
-		.map{ row -> tuple(row.sample_id, row.ann_genome_path) }
-		.map{ it -> it[1] }
-		.collect()
-	
-	    PanarooAnalysis(gff_files)
+                .splitCsv(header: true, sep: ',')
+                .map{ row -> tuple(row.sample_id, row.ann_genome_path) }
+                .map{ it -> it[1] }
+                .collect()
+    
+            PanarooAnalysis(gff_files)
             alignment = PanarooAnalysis.out.panaroo_output_core_aln
 
             PhylogeneticAnalysis(alignment)
@@ -185,14 +185,14 @@ workflow {
         sig_kmer = SignificantKmers.out.sig_kmer_out
 
         if (params.reference){
-	
-	    ref_manifest_ch = Channel.fromPath(params.reference)
-	    
-	    ref_ch = ref_manifest_ch.splitCsv(header: false, sep:"\t")
+    
+        ref_manifest_ch = Channel.fromPath(params.reference)
+        
+        ref_ch = ref_manifest_ch.splitCsv(header: false, sep:"\t")
                 .map{ row -> tuple(row[0], row[1]) }
-	        .combine(sig_kmer)
+            .combine(sig_kmer)
             
-	    KmerMap(ref_ch)
+        KmerMap(ref_ch)
 
             WriteReferenceText(manifest_ch,ref_manifest_ch)
             reftxt = WriteReferenceText.out.write_ref_text_out
@@ -201,10 +201,10 @@ workflow {
             genehit = AnnotateKmers.out.annotated_kmers_out
 
             GeneHitPlot(genehit)
-	}
+    }
     }
     else {
-	println "Please use a correct genotype method (unitig|pa|snp)."
+    println "Please use a correct genotype method (unitig|pa|snp)."
     }
 
     
