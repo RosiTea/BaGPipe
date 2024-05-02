@@ -106,6 +106,6 @@ A Docker container has been developed to facilitate the installation of all esse
 A single default configuration file is supplied, encompassing all options and parameters for BaGPipe. The user can tailor this file for conducting specific analyses. To simplify the experience for users at all levels of programming knowledge, the configuration file limits modifications to only key parameters. However, experienced users have the option to alter any parameter by changing the source code. Additionally, the user can edit the profile configuration file to run BaGPipe matching the resource settings of their institution’s HPC platform (https://nf-co.re/configs).
 
 ## Credits
-Pyseer is developed by the Dr. John Lees' team. I would like that thank them for making this amazing tool available. Documentation: https://pyseer.readthedocs.io/en/master
+Pyseer is developed by the Dr. John Lees' team. I would like to thank them for making this amazing tool available. Documentation: https://pyseer.readthedocs.io/en/master
 
 I am supervised by Dr. Ewan Harrison, Dinesh Aggarwal, and William Roberts-Sengier. They are main contributors to ideas in this project. 
